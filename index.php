@@ -380,7 +380,11 @@ db();
 
         <template x-if="!user">
             <div>
-                <form hx-post="api.php?action=signin"
+                <form method="post"
+                      action="api.php?action=signin"
+                      @submit.prevent
+                      autocomplete="on"
+                      hx-post="api.php?action=signin"
                       hx-ext="json-enc"
                       hx-swap="none"
                       x-on:htmx:after-request="onSigninResponse($event)"
