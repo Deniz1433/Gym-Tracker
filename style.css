@@ -1,0 +1,118 @@
+* { box-sizing: border-box; }
+body {
+    font-family: system-ui, sans-serif;
+    margin: 0;
+    background: #f5f5f5;
+    color: #222;
+}
+header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 1.5rem;
+    background: #222;
+    color: #fff;
+}
+header h1 { margin: 0; font-size: 1.25rem; }
+main { max-width: 800px; margin: 1.5rem auto; padding: 0 1rem; }
+
+#auth-bar button { margin-left: .5rem; }
+
+form label { display: block; margin: .5rem 0; }
+form input, form textarea {
+    width: 100%;
+    padding: .4rem;
+    font: inherit;
+    border: 1px solid #bbb;
+    border-radius: 4px;
+}
+fieldset { margin: .75rem 0; padding: .5rem .75rem; border: 1px solid #ccc; border-radius: 4px; }
+fieldset label { display: inline-flex; align-items: center; gap: .35rem; margin-right: 1rem; }
+fieldset label input[type=checkbox] { width: auto; }
+.hint { font-size: .85rem; color: #666; margin: .25rem 0 0; }
+.msg { min-height: 1.2em; font-size: .9rem; color: #b00; }
+.msg.ok { color: #060; }
+.row { display: flex; gap: .5rem; flex-wrap: wrap; margin-top: .75rem; }
+button {
+    padding: .5rem .9rem;
+    background: #222;
+    color: #fff;
+    border: 0;
+    border-radius: 4px;
+    cursor: pointer;
+    font: inherit;
+}
+button:hover { background: #444; }
+button.danger { background: #a33; }
+button.danger:hover { background: #c44; }
+#cancel-btn { background: #888; }
+
+.cal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: .5rem; }
+.cal-header h2 { margin: 0; font-size: 1.1rem; }
+.cal-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+    background: #ddd;
+    border: 1px solid #ddd;
+}
+.cal-cell {
+    background: #fff;
+    aspect-ratio: 1 / 1;
+    padding: .35rem;
+    font-size: .85rem;
+    display: flex;
+    flex-direction: column;
+    cursor: pointer;
+    border: 2px solid transparent;
+}
+.cal-cell.dow { background: #eee; aspect-ratio: auto; padding: .25rem; font-weight: bold; text-align: center; cursor: default; }
+.cal-cell.empty { background: #f5f5f5; cursor: default; }
+.cal-cell.future { background: #f9f9f9; color: #aaa; cursor: not-allowed; }
+.cal-cell.today { border-color: #06c; }
+.cal-cell .day-num { font-weight: bold; }
+.cal-cell .tag { margin-top: auto; font-size: .7rem; padding: 1px 4px; border-radius: 3px; align-self: flex-start; }
+.cal-cell .has-note::after { content: " *"; color: #06c; }
+.tag.rest     { background: #eee;     color: #666; }
+.tag.strength { background: #ffe1b3; color: #714; }
+.tag.cardio   { background: #c8e6ff; color: #036; }
+.tag.both     { background: #d6f5d6; color: #060; }
+
+.legend { font-size: .8rem; color: #666; }
+.legend .sw { display: inline-block; width: 12px; height: 12px; vertical-align: middle; margin: 0 .25rem 0 .75rem; border-radius: 2px; }
+.sw.rest { background: #eee; border: 1px solid #ccc; }
+.sw.strength { background: #ffe1b3; }
+.sw.cardio { background: #c8e6ff; }
+.sw.both { background: #d6f5d6; }
+
+dialog {
+    border: 0;
+    border-radius: 8px;
+    padding: 1.25rem;
+    max-width: 480px;
+    width: 92%;
+    box-shadow: 0 10px 40px rgba(0,0,0,.25);
+}
+dialog::backdrop { background: rgba(0,0,0,.4); }
+dialog h3 { margin-top: 0; }
+
+.merge-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: .5rem 0 1rem;
+    font-size: .9rem;
+}
+.merge-table th, .merge-table td {
+    padding: .4rem .5rem;
+    border: 1px solid #ddd;
+    text-align: left;
+}
+.merge-table thead th { background: #f0f0f0; }
+
+#auth-bar .anon-tag {
+    background: #555;
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-size: .8rem;
+    margin-right: .5rem;
+}

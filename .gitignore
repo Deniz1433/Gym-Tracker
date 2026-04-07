@@ -1,0 +1,20 @@
+# SQLite database + WAL/SHM sidecars
+data/*.db
+data/*.db-journal
+data/*.db-wal
+data/*.db-shm
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.idea/
+.vscode/
+
+# Logs
+*.log
+
+# Local secrets / env
+.env
+.env.local

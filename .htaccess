@@ -1,0 +1,9 @@
+DirectoryIndex index.php
+
+# Block access to the SQLite database directory.
+RedirectMatch 404 ^/?(.*/)?data(/|$)
+
+# Block dotfiles.
+<FilesMatch "^\.">
+    Require all denied
+</FilesMatch>
