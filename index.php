@@ -44,6 +44,7 @@ db();
         --c-accent:      #38bdf8;
         --c-accent-text: #0c1e2e;
         --c-accent-hover:#7dd3fc;
+        --c-input-text:  #f8fafc;
         --c-strength:    #ea580c;
         --c-strength-text:#ffedd5;
         --c-cardio:      #0284c7;
@@ -58,6 +59,11 @@ db();
     }
 
     [x-cloak] { display: none !important; }
+
+    /* Tell browser UA (scrollbars, spin buttons, date pickers, autofill, etc.)
+       which color scheme to render with. */
+    :root                       { color-scheme: dark; }
+    [data-theme="light"]        { color-scheme: light; }
 
     html, body {
         background-color: var(--c-page);
@@ -82,13 +88,31 @@ db();
     .ring-accent    { box-shadow: 0 0 0 2px var(--c-accent); }
 
     /* ----- Generic form control styling, theme-aware ----- */
+    /* Input text is always white, except on the light theme where it's black.
+       !important is needed because Tailwind CDN injects its preflight
+       (`button, input, ... { color: inherit; }`) at the same specificity and
+       loads after this <style> block, so it wins the cascade tie otherwise. */
     input, select, textarea {
         background-color: var(--c-elev);
-        color:            var(--c-text-pri);
+        color:            #ffffff !important;
         border:           1px solid var(--c-border);
         border-radius:    0.375rem;
         padding:          0.5rem;
         font:             inherit;
+    }
+    [data-theme="light"] input,
+    [data-theme="light"] select,
+    [data-theme="light"] textarea {
+        color: #000000 !important;
+    }
+    input::placeholder, textarea::placeholder {
+        color: #ffffff;
+        opacity: 0.45;
+    }
+    [data-theme="light"] input::placeholder,
+    [data-theme="light"] textarea::placeholder {
+        color: #000000;
+        opacity: 0.45;
     }
     select { padding-right: 2rem; }
     textarea { padding: 0.5rem; }
@@ -322,15 +346,15 @@ db();
             <div class="grid grid-cols-3 gap-2">
                 <label class="block text-xs text-mut">
                     Duration (min)
-                    <input type="number" min="0" step="any" x-model="day.duration_min" class="mt-1 text-sm">
+                    <input type="number" min="0" step="any" x-model="day.duration_min" class="mt-1 w-full text-sm">
                 </label>
                 <label class="block text-xs text-mut">
                     Distance (km)
-                    <input type="number" min="0" step="any" x-model="day.distance_km" class="mt-1 text-sm">
+                    <input type="number" min="0" step="any" x-model="day.distance_km" class="mt-1 w-full text-sm">
                 </label>
                 <label class="block text-xs text-mut">
                     Calories (kcal)
-                    <input type="number" min="0" step="any" x-model="day.calories" class="mt-1 text-sm">
+                    <input type="number" min="0" step="any" x-model="day.calories" class="mt-1 w-full text-sm">
                 </label>
             </div>
             <p class="text-xs text-sec mt-2 font-medium min-h-[1rem]" x-text="cardioStats"></p>
@@ -340,7 +364,7 @@ db();
             <span class="text-sm font-semibold text-sec">Notes</span>
             <textarea rows="3" x-model="day.notes"
                       placeholder="How did it feel? PRs? Anything to remember…"
-                      class="mt-1 text-sm"></textarea>
+                      class="mt-1 w-full text-sm"></textarea>
         </label>
 
         <div class="flex flex-wrap gap-2">

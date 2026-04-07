@@ -14,6 +14,7 @@ const THEMES = {
         textPri: '#f1f5f9', textSec: '#cbd5e1', textMut: '#64748b',
         border: '#334155', overlay: 'rgba(0, 0, 0, 0.7)', btnHover: 'rgba(255, 255, 255, 0.08)',
         accent: '#38bdf8', accentText: '#0c1e2e', accentHover: '#7dd3fc',
+        inputBg: '#0b1220', inputText: '#f8fafc',
         strength: '#ea580c', strengthText: '#ffedd5',
         cardio:   '#0284c7', cardioText:   '#e0f2fe',
         both:     '#16a34a', bothText:     '#dcfce7',
@@ -28,6 +29,7 @@ const THEMES = {
         textPri: '#0f172a', textSec: '#475569', textMut: '#94a3b8',
         border: '#e2e8f0', overlay: 'rgba(15, 23, 42, 0.5)', btnHover: 'rgba(0, 0, 0, 0.05)',
         accent: '#0ea5e9', accentText: '#ffffff', accentHover: '#0284c7',
+        inputBg: '#ffffff', inputText: '#0f172a',
         strength: '#fed7aa', strengthText: '#7c2d12',
         cardio:   '#bae6fd', cardioText:   '#0c4a6e',
         both:     '#a7f3d0', bothText:     '#064e3b',
@@ -42,6 +44,7 @@ const THEMES = {
         textPri: '#ebdbb2', textSec: '#d5c4a1', textMut: '#928374',
         border: '#504945', overlay: 'rgba(0, 0, 0, 0.7)', btnHover: 'rgba(235, 219, 178, 0.08)',
         accent: '#fabd2f', accentText: '#1d2021', accentHover: '#fe8019',
+        inputBg: '#1d2021', inputText: '#fbf1c7',
         strength: '#d65d0e', strengthText: '#fbf1c7',
         cardio:   '#458588', cardioText:   '#fbf1c7',
         both:     '#98971a', bothText:     '#1d2021',
@@ -56,6 +59,7 @@ const THEMES = {
         textPri: '#93a1a1', textSec: '#839496', textMut: '#586e75',
         border: '#073642', overlay: 'rgba(0, 0, 0, 0.7)', btnHover: 'rgba(147, 161, 161, 0.08)',
         accent: '#268bd2', accentText: '#fdf6e3', accentHover: '#2aa198',
+        inputBg: '#073642', inputText: '#fdf6e3',
         strength: '#cb4b16', strengthText: '#fdf6e3',
         cardio:   '#268bd2', cardioText:   '#fdf6e3',
         both:     '#859900', bothText:     '#002b36',
@@ -70,6 +74,7 @@ const THEMES = {
         textPri: '#f8f8f2', textSec: '#f8f8f2', textMut: '#6272a4',
         border: '#44475a', overlay: 'rgba(0, 0, 0, 0.7)', btnHover: 'rgba(248, 248, 242, 0.08)',
         accent: '#bd93f9', accentText: '#282a36', accentHover: '#d6acff',
+        inputBg: '#21222c', inputText: '#f8f8f2',
         strength: '#ff79c6', strengthText: '#282a36',
         cardio:   '#8be9fd', cardioText:   '#282a36',
         both:     '#50fa7b', bothText:     '#282a36',
@@ -84,6 +89,7 @@ const THEMES = {
         textPri: '#eceff4', textSec: '#d8dee9', textMut: '#4c566a',
         border: '#434c5e', overlay: 'rgba(0, 0, 0, 0.7)', btnHover: 'rgba(236, 239, 244, 0.08)',
         accent: '#88c0d0', accentText: '#2e3440', accentHover: '#8fbcbb',
+        inputBg: '#242933', inputText: '#eceff4',
         strength: '#d08770', strengthText: '#2e3440',
         cardio:   '#5e81ac', cardioText:   '#eceff4',
         both:     '#a3be8c', bothText:     '#2e3440',
@@ -98,6 +104,7 @@ const THEMES = {
         textPri: '#cdd6f4', textSec: '#bac2de', textMut: '#6c7086',
         border: '#45475a', overlay: 'rgba(0, 0, 0, 0.7)', btnHover: 'rgba(205, 214, 244, 0.08)',
         accent: '#cba6f7', accentText: '#1e1e2e', accentHover: '#b4befe',
+        inputBg: '#11111b', inputText: '#cdd6f4',
         strength: '#fab387', strengthText: '#1e1e2e',
         cardio:   '#89b4fa', cardioText:   '#1e1e2e',
         both:     '#a6e3a1', bothText:     '#1e1e2e',
@@ -112,6 +119,7 @@ const THEMES = {
         textPri: '#c0caf5', textSec: '#a9b1d6', textMut: '#565f89',
         border: '#414868', overlay: 'rgba(0, 0, 0, 0.7)', btnHover: 'rgba(192, 202, 245, 0.08)',
         accent: '#7aa2f7', accentText: '#1a1b26', accentHover: '#bb9af7',
+        inputBg: '#16161e', inputText: '#c0caf5',
         strength: '#f7768e', strengthText: '#1a1b26',
         cardio:   '#7aa2f7', cardioText:   '#1a1b26',
         both:     '#9ece6a', bothText:     '#1a1b26',
@@ -151,6 +159,7 @@ function applyThemeVars(t, overrides, themeKey) {
     set('--c-accent',      t.accent);
     set('--c-accent-text', t.accentText);
     set('--c-accent-hover',t.accentHover);
+    set('--c-input-text',  t.inputText  || t.textPri);
     set('--c-future',      t.future);
     set('--c-future-text', t.futureText);
     set('--c-today-ring',  t.todayRing);
