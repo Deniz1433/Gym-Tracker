@@ -45,6 +45,18 @@ function db(): PDO {
 
     $pdo->exec('CREATE INDEX IF NOT EXISTS idx_workouts_user_date ON workouts(user_id, date)');
 
+    $pdo->exec(<<<SQL
+        CREATE TABLE IF NOT EXISTS login_attempts (
+            id         INTEGER PRIMARY KEY AUTOINCREMENT,
+            email      TEXT    NOT NULL,
+            ip         TEXT    NOT NULL,
+            success    INTEGER NOT NULL,
+            created_at TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+        );
+    SQL);
+    $pdo->exec('CREATE INDEX IF NOT EXISTS idx_login_attempts_email ON login_attempts(email, created_at)');
+    $pdo->exec('CREATE INDEX IF NOT EXISTS idx_login_attempts_ip    ON login_attempts(ip, created_at)');
+
     return $pdo;
 }
 

@@ -97,7 +97,7 @@ db();
         color:            #ffffff !important;
         border:           1px solid var(--c-border);
         border-radius:    0.375rem;
-        padding:          0.5rem;
+        padding:          0.625rem 0.875rem;
         font:             inherit;
     }
     [data-theme="light"] input,
@@ -115,7 +115,7 @@ db();
         opacity: 0.45;
     }
     select { padding-right: 2rem; }
-    textarea { padding: 0.5rem; }
+    textarea { padding: 0.625rem 0.875rem; }
     input:focus, select:focus, textarea:focus {
         outline: 2px solid var(--c-accent);
         outline-offset: -1px;
@@ -329,16 +329,18 @@ db();
 
         <fieldset class="border border-th rounded-lg p-3 mb-3">
             <legend class="px-2 text-sm font-semibold text-sec">Workout type</legend>
-            <label class="inline-flex items-center gap-2 mr-5 cursor-pointer">
-                <input type="checkbox" x-model="day.has_strength">
-                <i data-lucide="dumbbell" class="w-4 h-4"></i>
-                <span class="text-sm">Strength</span>
-            </label>
-            <label class="inline-flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" x-model="day.has_cardio">
-                <i data-lucide="footprints" class="w-4 h-4"></i>
-                <span class="text-sm">Cardio</span>
-            </label>
+            <div class="flex justify-center gap-8">
+                <label class="inline-flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" x-model="day.has_strength">
+                    <i data-lucide="dumbbell" class="w-4 h-4"></i>
+                    <span class="text-sm">Strength</span>
+                </label>
+                <label class="inline-flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" x-model="day.has_cardio">
+                    <i data-lucide="footprints" class="w-4 h-4"></i>
+                    <span class="text-sm">Cardio</span>
+                </label>
+            </div>
         </fieldset>
 
         <fieldset x-show="day.has_cardio" x-transition class="border border-th rounded-lg p-3 mb-3">
@@ -402,8 +404,7 @@ db();
             </button>
         </div>
 
-        <template x-if="!user">
-            <div>
+        <div x-show="!user">
                 <form method="post"
                       action="api.php?action=signin"
                       @submit.prevent
@@ -442,11 +443,9 @@ db();
                     You can use the app without an account — your data is saved in this browser.
                     Sign up to keep it and sync across devices.
                 </p>
-            </div>
-        </template>
+        </div>
 
-        <template x-if="user">
-            <div class="space-y-4">
+        <div x-show="user" class="space-y-4">
                 <div class="bg-elev border border-th rounded-lg p-3 text-sm">
                     Signed in as <span class="font-semibold" x-text="user"></span>
                 </div>
@@ -457,8 +456,7 @@ db();
                 <p class="text-xs text-mut">
                     Signing out clears local data on this browser. Your account data stays safe on the server.
                 </p>
-            </div>
-        </template>
+        </div>
     </div>
 </div>
 

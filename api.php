@@ -8,11 +8,25 @@ session_set_cookie_params([
     'path'     => '/',
     'httponly' => true,
     'samesite' => 'Lax',
+    'secure'   => !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off',
 ]);
 session_start();
 
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store');
+
+// CSRF protection: state-changing requests must carry a header that
+// cross-origin HTML forms cannot set without a CORS preflight (which we
+// never grant). Both our fetch() helper and HTMX satisfy one of these.
+if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
+    $xrw  = $_SERVER['HTTP_X_REQUESTED_WITH'] ?? '';
+    $hxrq = $_SERVER['HTTP_HX_REQUEST']       ?? '';
+    if ($xrw !== 'fetch' && $hxrq !== 'true') {
+        http_response_code(403);
+        echo json_encode(['error' => 'forbidden']);
+        exit;
+    }
+}
 
 function json_out(array $data, int $code = 200): never {
     http_response_code($code);
@@ -39,6 +53,30 @@ function require_user(): int {
     $uid = $_SESSION['uid'] ?? null;
     if (!is_int($uid)) fail('not signed in', 401);
     return $uid;
+}
+
+function client_ip(): string {
+    return (string)($_SERVER['REMOTE_ADDR'] ?? '');
+}
+
+// Counts failed signin attempts in the last 15 minutes for either the
+// given email or the given IP. Returns true if the caller should be
+// blocked from attempting another signin.
+function signin_blocked(PDO $db, string $email, string $ip): bool {
+    $cutoff = (new DateTimeImmutable('-15 minutes', new DateTimeZone('UTC')))
+        ->format('Y-m-d\TH:i:s.v\Z');
+    $stmt = $db->prepare(
+        'SELECT COUNT(*) FROM login_attempts
+          WHERE success = 0 AND created_at > ? AND (email = ? OR ip = ?)'
+    );
+    $stmt->execute([$cutoff, $email, $ip]);
+    // 10 failures in 15min across (this email OR this IP) trips the block.
+    return ((int)$stmt->fetchColumn()) >= 10;
+}
+
+function record_signin_attempt(PDO $db, string $email, string $ip, bool $success): void {
+    $stmt = $db->prepare('INSERT INTO login_attempts (email, ip, success) VALUES (?, ?, ?)');
+    $stmt->execute([$email, $ip, $success ? 1 : 0]);
 }
 
 function valid_date(string $d): bool {
@@ -94,12 +132,29 @@ try {
             $b = body();
             $email = trim((string)($b['email'] ?? ''));
             $pass  = (string)($b['password'] ?? '');
+            $ip    = client_ip();
+
+            if (signin_blocked($db, $email, $ip)) {
+                fail('too many attempts, please wait a few minutes', 429);
+            }
+
             $stmt = $db->prepare('SELECT id, password_hash FROM users WHERE email = ?');
             $stmt->execute([$email]);
             $row = $stmt->fetch();
             if (!$row || !password_verify($pass, $row['password_hash'])) {
+                record_signin_attempt($db, $email, $ip, false);
                 fail('invalid credentials', 401);
             }
+
+            // Upgrade the stored hash if PHP's default cost has been bumped
+            // since this account was created.
+            if (password_needs_rehash($row['password_hash'], PASSWORD_DEFAULT)) {
+                $newHash = password_hash($pass, PASSWORD_DEFAULT);
+                $up = $db->prepare('UPDATE users SET password_hash = ? WHERE id = ?');
+                $up->execute([$newHash, (int)$row['id']]);
+            }
+
+            record_signin_attempt($db, $email, $ip, true);
             $_SESSION['uid'] = (int)$row['id'];
             session_regenerate_id(true);
             json_out(['ok' => true, 'email' => $email]);
@@ -300,5 +355,8 @@ try {
             fail('unknown action', 404);
     }
 } catch (Throwable $e) {
-    fail('server error: ' . $e->getMessage(), 500);
+    // Log details server-side; never echo exception text to clients —
+    // it can leak file paths, SQL fragments, or stored note content.
+    error_log('api.php error: ' . $e->getMessage() . ' @ ' . $e->getFile() . ':' . $e->getLine());
+    fail('server error', 500);
 }

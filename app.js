@@ -327,9 +327,10 @@ function gymApp() {
         async api(action, opts = {}) {
             const url = `api.php?action=${encodeURIComponent(action)}` +
                 (opts.query ? '&' + new URLSearchParams(opts.query).toString() : '');
-            const init = { method: opts.method || 'GET', credentials: 'same-origin' };
+            const headers = { 'X-Requested-With': 'fetch' };
+            const init = { method: opts.method || 'GET', credentials: 'same-origin', headers };
             if (opts.body !== undefined) {
-                init.headers = { 'Content-Type': 'application/json' };
+                headers['Content-Type'] = 'application/json';
                 init.body = JSON.stringify(opts.body);
             }
             const res = await fetch(url, init);
