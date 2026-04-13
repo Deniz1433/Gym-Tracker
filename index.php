@@ -355,11 +355,10 @@ db();
     <div x-show="!analyzeLoading && totalWorkouts > 0">
 
         <!-- Personality Banner -->
-        <div x-show="personality" class="rounded-xl p-4 mb-5 flex items-center gap-4"
-             style="background-color: var(--c-surface);"
-             :style="'background-color: var(--c-surface); border-left: 4px solid ' + (personality ? personality.color : 'var(--c-accent)')">
+        <div x-show="personality" class="rounded-xl p-4 mb-5 flex items-center gap-4 overflow-hidden relative"
+             :style="'background: linear-gradient(135deg, ' + (personality ? personality.color : 'var(--c-accent)') + '22 0%, var(--c-surface) 60%)'">
             <div class="flex-shrink-0 w-12 h-12 rounded-full flex items-center justify-center"
-                 :style="'background-color: color-mix(in srgb, ' + (personality ? personality.color : 'var(--c-accent)') + ' 15%, transparent)'">
+                 :style="'background-color: ' + (personality ? personality.color : 'var(--c-accent)') + '26'">
                 <i :data-lucide="personality ? personality.icon : 'star'" class="w-6 h-6"
                    :style="'color: ' + (personality ? personality.color : 'var(--c-accent)')"></i>
             </div>
@@ -446,11 +445,15 @@ db();
         </div>
 
         <!-- Milestones -->
-        <div class="rounded-xl p-4" style="background-color: var(--c-surface)">
+        <div class="rounded-xl p-4 relative" style="background-color: var(--c-surface)">
             <h4 class="text-sm font-semibold mb-3" style="color: var(--c-text-sec)">Milestones</h4>
             <div class="grid grid-cols-4 gap-2">
                 <template x-for="m in milestones" :key="m.title">
-                    <div class="text-center p-2 rounded-lg transition"
+                    <div class="text-center p-2 rounded-lg transition cursor-pointer"
+                         @mouseenter="msTip = m.hint; msTipShow($event.currentTarget)"
+                         @mouseleave="msTip = ''"
+                         @touchstart.passive="msTip = m.hint; msTipShow($event.currentTarget)"
+                         @touchend="setTimeout(() => msTip = '', 1500)"
                          :style="m.done
                             ? 'background-color: var(--c-elev); opacity: 1'
                             : 'background-color: var(--c-elev); opacity: 0.35'">
@@ -465,6 +468,13 @@ db();
                              x-text="m.title"></div>
                     </div>
                 </template>
+            </div>
+            <!-- Shared milestone tooltip -->
+            <div x-show="msTip" x-transition.opacity.duration.150ms
+                 class="pointer-events-none absolute z-50 rounded-lg px-3 py-2 text-xs text-center whitespace-normal"
+                 :style="'left:' + msTipX + 'px; bottom:' + msTipY + 'px; width: 140px; margin-left: -70px; background-color: var(--c-surface); border: 1px solid var(--c-accent); color: var(--c-text-pri); box-shadow: 0 4px 16px rgba(0,0,0,0.4);'">
+                <span x-text="msTip"></span>
+                <div class="absolute left-1/2 top-full -translate-x-1/2" style="border-left: 6px solid transparent; border-right: 6px solid transparent; border-top: 6px solid var(--c-accent);"></div>
             </div>
         </div>
 

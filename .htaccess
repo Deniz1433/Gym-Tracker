@@ -1,4 +1,16 @@
+# 1. Set the default file to serve for the directory
 DirectoryIndex index.php
+
+# 2. Enable the Rewrite Engine
+RewriteEngine On
+RewriteBase /gym-tracker/
+
+# 3. Redirect /index.php to / (The "Clean URL" step)
+# If a user types index.php, this physically changes it in their browser
+RewriteCond %{THE_REQUEST} ^[A-Z]{3,9}\ /gym-tracker/index\.php\ HTTP/
+RewriteRule ^index\.php$ https://cloudbox.ftp.sh/gym-tracker/ [R=301,L]
+
+# --- Your Existing Security Rules ---
 
 # Block access to the SQLite database directory.
 RedirectMatch 404 ^/?(.*/)?data(/|$)

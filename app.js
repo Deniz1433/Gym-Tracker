@@ -211,6 +211,16 @@ function gymApp() {
         allWorkouts:      [],
         analyzeLoading:   false,
         _charts:          {},
+        msTip: '',
+        msTipX: 0,
+        msTipY: 0,
+        msTipShow(el) {
+            const container = el.closest('.relative');
+            const cRect = container.getBoundingClientRect();
+            const eRect = el.getBoundingClientRect();
+            this.msTipX = eRect.left - cRect.left + eRect.width / 2;
+            this.msTipY = cRect.bottom - eRect.top + 8;
+        },
 
         day: {
             has_strength: false,
@@ -891,17 +901,17 @@ function gymApp() {
             const streaks = this.analyzeStreaks;
             const split = this.typeSplit;
             const ms = [];
-            const add = (cond, icon, title) => ms.push({ icon, title, done: cond });
-            add(active.length >= 1, 'dumbbell', 'First Workout');
-            add(active.length >= 10, 'flame', '10 Sessions');
-            add(active.length >= 50, 'star', 'Half Century');
-            add(active.length >= 100, 'award', 'Century Club');
-            add(streaks.longest >= 7, 'calendar-check', '7-Day Streak');
-            add(streaks.longest >= 30, 'heart', '30-Day Streak');
-            add(split.both >= 10, 'zap', 'Dual Threat');
+            const add = (cond, icon, title, hint) => ms.push({ icon, title, done: cond, hint });
+            add(active.length >= 1, 'dumbbell', 'First Workout', 'Log your very first workout');
+            add(active.length >= 10, 'flame', '10 Sessions', 'Complete 10 total workouts');
+            add(active.length >= 50, 'star', 'Half Century', 'Reach 50 logged workouts');
+            add(active.length >= 100, 'award', 'Century Club', 'Hit 100 workouts — legend status');
+            add(streaks.longest >= 7, 'calendar-check', '7-Day Streak', 'Work out 7 days in a row');
+            add(streaks.longest >= 30, 'heart', '30-Day Streak', 'Keep a 30-day streak going');
+            add(split.both >= 10, 'zap', 'Dual Threat', 'Log 10 combined strength + cardio sessions');
             const monthCounts = {};
             for (const w of active) { const m = w.date.substring(0, 7); monthCounts[m] = (monthCounts[m] || 0) + 1; }
-            add(Math.max(0, ...Object.values(monthCounts)) >= 20, 'trophy', 'Marathon Month');
+            add(Math.max(0, ...Object.values(monthCounts)) >= 20, 'trophy', 'Marathon Month', 'Log 20 workouts in a single month');
             return ms;
         },
 
