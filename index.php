@@ -22,6 +22,9 @@ db();
 <script src="https://unpkg.com/htmx.org@2.0.4/dist/htmx.min.js"></script>
 <script src="https://unpkg.com/htmx-ext-json-enc@2.0.2/json-enc.js"></script>
 
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+
 <!-- Alpine.js (defer so gymApp() is defined first; app.js IIFE applies theme synchronously) -->
 <script src="app.js"></script>
 <script defer src="https://unpkg.com/alpinejs@3.14.3/dist/cdn.min.js"></script>
@@ -244,8 +247,30 @@ db();
     </div>
 </header>
 
+<!-- ============ Navigation Tabs ============ -->
+<nav class="max-w-3xl mx-auto px-4 pt-4">
+    <div class="flex rounded-xl p-1" style="background-color: var(--c-surface);">
+        <button @click="switchPage('track')"
+                class="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg font-semibold text-sm transition-all duration-200"
+                :style="currentPage === 'track'
+                    ? 'background-color: var(--c-accent); color: var(--c-accent-text); box-shadow: 0 1px 3px rgba(0,0,0,0.2)'
+                    : 'color: var(--c-text-sec)'">
+            <i data-lucide="dumbbell" class="w-4 h-4"></i>
+            Track
+        </button>
+        <button @click="switchPage('analyze')"
+                class="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg font-semibold text-sm transition-all duration-200"
+                :style="currentPage === 'analyze'
+                    ? 'background-color: var(--c-accent); color: var(--c-accent-text); box-shadow: 0 1px 3px rgba(0,0,0,0.2)'
+                    : 'color: var(--c-text-sec)'">
+            <i data-lucide="bar-chart-3" class="w-4 h-4"></i>
+            Analyze
+        </button>
+    </div>
+</nav>
+
 <!-- ============ Calendar ============ -->
-<main class="max-w-3xl mx-auto p-4">
+<main x-show="currentPage === 'track'" class="max-w-3xl mx-auto p-4">
     <div class="flex items-center justify-between mb-3">
         <button @click="prevMonth()"
                 class="p-2 rounded text-pri transition"
@@ -307,6 +332,142 @@ db();
         <span class="flex items-center gap-1.5">
             <span class="inline-block w-3 h-3 rounded-sm" style="background-color: var(--c-both)"></span>Both
         </span>
+    </div>
+</main>
+
+<!-- ============ Analyze Page ============ -->
+<main x-show="currentPage === 'analyze'" class="max-w-3xl mx-auto p-4">
+
+    <!-- Loading spinner -->
+    <div x-show="analyzeLoading" class="flex items-center justify-center py-16">
+        <div class="w-8 h-8 border-2 rounded-full animate-spin"
+             style="border-color: var(--c-border); border-top-color: var(--c-accent);"></div>
+    </div>
+
+    <!-- Empty state -->
+    <div x-show="!analyzeLoading && totalWorkouts === 0" class="text-center py-16">
+        <i data-lucide="bar-chart-3" class="w-16 h-16 mx-auto mb-4" style="color: var(--c-text-mut)"></i>
+        <p class="text-lg font-semibold mb-1" style="color: var(--c-text-sec)">No data yet</p>
+        <p class="text-sm" style="color: var(--c-text-mut)">Log some workouts on the Track page to see your analytics!</p>
+    </div>
+
+    <!-- Analysis content -->
+    <div x-show="!analyzeLoading && totalWorkouts > 0">
+
+        <!-- Personality Banner -->
+        <div x-show="personality" class="rounded-xl p-4 mb-5 flex items-center gap-4"
+             style="background-color: var(--c-surface);"
+             :style="'background-color: var(--c-surface); border-left: 4px solid ' + (personality ? personality.color : 'var(--c-accent)')">
+            <div class="flex-shrink-0 w-12 h-12 rounded-full flex items-center justify-center"
+                 :style="'background-color: color-mix(in srgb, ' + (personality ? personality.color : 'var(--c-accent)') + ' 15%, transparent)'">
+                <i :data-lucide="personality ? personality.icon : 'star'" class="w-6 h-6"
+                   :style="'color: ' + (personality ? personality.color : 'var(--c-accent)')"></i>
+            </div>
+            <div>
+                <h3 class="font-bold text-lg" style="color: var(--c-text-pri)" x-text="personality ? personality.title : ''"></h3>
+                <p class="text-sm" style="color: var(--c-text-sec)" x-text="personality ? personality.desc : ''"></p>
+            </div>
+        </div>
+
+        <!-- Stats Cards -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
+            <div class="rounded-xl p-4 text-center" style="background-color: var(--c-surface)">
+                <div class="text-2xl font-bold" style="color: var(--c-accent)" x-text="totalWorkouts"></div>
+                <div class="text-xs mt-1" style="color: var(--c-text-mut)">Total Workouts</div>
+            </div>
+            <div class="rounded-xl p-4 text-center" style="background-color: var(--c-surface)">
+                <div class="text-2xl font-bold" style="color: var(--c-strength)">
+                    <span x-text="analyzeStreaks.current"></span>
+                    <span class="text-base">d</span>
+                </div>
+                <div class="text-xs mt-1" style="color: var(--c-text-mut)">Current Streak</div>
+            </div>
+            <div class="rounded-xl p-4 text-center" style="background-color: var(--c-surface)">
+                <div class="text-2xl font-bold" style="color: var(--c-both)">
+                    <span x-text="analyzeStreaks.longest"></span>
+                    <span class="text-base">d</span>
+                </div>
+                <div class="text-xs mt-1" style="color: var(--c-text-mut)">Longest Streak</div>
+            </div>
+            <div class="rounded-xl p-4 text-center" style="background-color: var(--c-surface)">
+                <div class="text-2xl font-bold" style="color: var(--c-cardio)">
+                    <span x-text="consistencyPct"></span><span class="text-base">%</span>
+                </div>
+                <div class="text-xs mt-1" style="color: var(--c-text-mut)">30-Day Consistency</div>
+            </div>
+        </div>
+
+        <!-- Charts Row: Type Split + Favorite Days -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
+            <div class="rounded-xl p-4" style="background-color: var(--c-surface)">
+                <h4 class="text-sm font-semibold mb-3" style="color: var(--c-text-sec)">Workout Type Split</h4>
+                <canvas id="typeChart"></canvas>
+            </div>
+            <div class="rounded-xl p-4" style="background-color: var(--c-surface)">
+                <h4 class="text-sm font-semibold mb-3" style="color: var(--c-text-sec)">
+                    Favorite Days
+                    <span class="font-normal text-xs ml-1" style="color: var(--c-text-mut)" x-text="'(fav: ' + favoriteDayName + ')'"></span>
+                </h4>
+                <canvas id="dayChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Weekly Activity -->
+        <div class="rounded-xl p-4 mb-5" style="background-color: var(--c-surface)">
+            <h4 class="text-sm font-semibold mb-3" style="color: var(--c-text-sec)">Weekly Activity (last 12 weeks)</h4>
+            <canvas id="weeklyChart"></canvas>
+        </div>
+
+        <!-- Cardio Progress (conditional) -->
+        <div x-show="hasCardioData" class="rounded-xl p-4 mb-5" style="background-color: var(--c-surface)">
+            <h4 class="text-sm font-semibold mb-3" style="color: var(--c-text-sec)">Cardio Progress</h4>
+            <canvas id="cardioChart"></canvas>
+        </div>
+
+        <!-- Monthly Comparison -->
+        <div class="rounded-xl p-4 mb-5" style="background-color: var(--c-surface)">
+            <h4 class="text-sm font-semibold mb-3" style="color: var(--c-text-sec)" x-text="monthlyComparisonTitle"></h4>
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <template x-for="card in monthlyComparisonCards" :key="card.label">
+                    <div class="text-center p-3 rounded-lg" style="background-color: var(--c-elev)">
+                        <div class="text-xl font-bold" style="color: var(--c-text-pri)">
+                            <span x-text="card.value"></span>
+                            <span x-show="card.unit" class="text-xs font-normal" style="color: var(--c-text-mut)" x-text="card.unit"></span>
+                        </div>
+                        <div class="text-xs" style="color: var(--c-text-mut)" x-text="card.label"></div>
+                        <div class="text-xs mt-1 font-medium"
+                             :style="card.up ? 'color: var(--c-both)' : card.down ? 'color: #ef4444' : 'color: var(--c-text-mut)'">
+                            <span x-text="card.up ? '\u2191' : card.down ? '\u2193' : '='"></span>
+                            vs <span x-text="card.prev"></span>
+                        </div>
+                    </div>
+                </template>
+            </div>
+        </div>
+
+        <!-- Milestones -->
+        <div class="rounded-xl p-4" style="background-color: var(--c-surface)">
+            <h4 class="text-sm font-semibold mb-3" style="color: var(--c-text-sec)">Milestones</h4>
+            <div class="grid grid-cols-4 gap-2">
+                <template x-for="m in milestones" :key="m.title">
+                    <div class="text-center p-2 rounded-lg transition"
+                         :style="m.done
+                            ? 'background-color: var(--c-elev); opacity: 1'
+                            : 'background-color: var(--c-elev); opacity: 0.35'">
+                        <div class="w-8 h-8 mx-auto mb-1 rounded-full flex items-center justify-center"
+                             :style="m.done
+                                ? 'background-color: var(--c-accent); color: var(--c-accent-text)'
+                                : 'background-color: var(--c-border); color: var(--c-text-mut)'">
+                            <i :data-lucide="m.icon" class="w-4 h-4"></i>
+                        </div>
+                        <div class="text-xs font-medium leading-tight"
+                             :style="m.done ? 'color: var(--c-text-pri)' : 'color: var(--c-text-mut)'"
+                             x-text="m.title"></div>
+                    </div>
+                </template>
+            </div>
+        </div>
+
     </div>
 </main>
 

@@ -207,6 +207,11 @@ function gymApp() {
         showSettingsModal:false,
         signupNotice:     '',
 
+        currentPage:      'track',
+        allWorkouts:      [],
+        analyzeLoading:   false,
+        _charts:          {},
+
         day: {
             has_strength: false,
             has_cardio:   false,
@@ -253,6 +258,32 @@ function gymApp() {
             });
         },
 
+        // -------- Page navigation --------
+        async switchPage(page) {
+            if (page === this.currentPage) return;
+            if (this.currentPage === 'analyze') this.destroyCharts();
+            this.currentPage = page;
+            this.refreshIcons();
+            if (page === 'analyze') await this.loadAnalyzeData();
+        },
+
+        async loadAnalyzeData() {
+            this.analyzeLoading = true;
+            try {
+                if (this.user) {
+                    const data = await this.api('workouts');
+                    this.allWorkouts = data.workouts || [];
+                } else {
+                    this.allWorkouts = this.localList();
+                }
+            } catch (e) {
+                console.error('loadAnalyzeData failed', e);
+                this.allWorkouts = [];
+            }
+            this.analyzeLoading = false;
+            this.$nextTick(() => { this.renderCharts(); this.refreshIcons(); });
+        },
+
         // -------- Settings --------
         loadSettings() {
             try {
@@ -291,6 +322,7 @@ function gymApp() {
         onThemeChange() {
             this.applyTheme();
             this.saveSettings();
+            this._maybeRefreshCharts();
         },
 
         onIconsToggle() {
@@ -309,18 +341,21 @@ function gymApp() {
             this.settings.colorOverrides[kind] = hex;
             this.applyTheme();
             this.saveSettings();
+            this._maybeRefreshCharts();
         },
 
         resetColorOverride(kind) {
             this.settings.colorOverrides[kind] = null;
             this.applyTheme();
             this.saveSettings();
+            this._maybeRefreshCharts();
         },
 
         resetAllOverrides() {
             this.settings.colorOverrides = { strength: null, cardio: null, both: null, rest: null };
             this.applyTheme();
             this.saveSettings();
+            this._maybeRefreshCharts();
         },
 
         // -------- API helper --------
@@ -695,6 +730,306 @@ function gymApp() {
             this.localClear();
             this.showProfileModal = false;
             await this.loadMonth();
+        },
+
+        // -------- Analysis computations --------
+        get activeWorkouts() {
+            return this.allWorkouts.filter(w => w.has_strength || w.has_cardio);
+        },
+
+        get totalWorkouts() {
+            return this.activeWorkouts.length;
+        },
+
+        get analyzeStreaks() {
+            const dates = this.activeWorkouts.map(w => w.date).sort();
+            if (dates.length === 0) return { current: 0, longest: 0 };
+            const dateSet = new Set(dates);
+            const today = this.todayYmd();
+            let current = 0;
+            let check = new Date(today + 'T12:00:00');
+            if (!dateSet.has(this.ymd(check))) check.setDate(check.getDate() - 1);
+            while (dateSet.has(this.ymd(check))) {
+                current++;
+                check.setDate(check.getDate() - 1);
+            }
+            let longest = 0, run = 1;
+            for (let i = 1; i < dates.length; i++) {
+                const prev = new Date(dates[i - 1] + 'T12:00:00');
+                const curr = new Date(dates[i] + 'T12:00:00');
+                if (Math.round((curr - prev) / 86400000) === 1) run++;
+                else { longest = Math.max(longest, run); run = 1; }
+            }
+            return { current, longest: Math.max(longest, run) };
+        },
+
+        get consistencyPct() {
+            const today = new Date();
+            const ago = new Date(today);
+            ago.setDate(today.getDate() - 29);
+            const from = this.ymd(ago), to = this.ymd(today);
+            const count = this.activeWorkouts.filter(w => w.date >= from && w.date <= to).length;
+            return Math.round((count / 30) * 100);
+        },
+
+        get typeSplit() {
+            let strength = 0, cardio = 0, both = 0;
+            for (const w of this.allWorkouts) {
+                if (w.has_strength && w.has_cardio) both++;
+                else if (w.has_strength) strength++;
+                else if (w.has_cardio) cardio++;
+            }
+            return { strength, cardio, both };
+        },
+
+        get dayOfWeekCounts() {
+            const counts = [0, 0, 0, 0, 0, 0, 0];
+            for (const w of this.activeWorkouts) {
+                const d = new Date(w.date + 'T12:00:00');
+                counts[(d.getDay() + 6) % 7]++;
+            }
+            return counts;
+        },
+
+        get favoriteDayName() {
+            const days = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+            const counts = this.dayOfWeekCounts;
+            let maxIdx = 0;
+            for (let i = 1; i < 7; i++) if (counts[i] > counts[maxIdx]) maxIdx = i;
+            return counts[maxIdx] > 0 ? days[maxIdx] : '\u2014';
+        },
+
+        get weeklyActivity() {
+            const today = new Date();
+            const dow = today.getDay();
+            const monday = new Date(today);
+            monday.setDate(today.getDate() - ((dow + 6) % 7));
+            monday.setHours(12, 0, 0, 0);
+            const weeks = [];
+            for (let i = 11; i >= 0; i--) {
+                const start = new Date(monday);
+                start.setDate(monday.getDate() - i * 7);
+                const end = new Date(start);
+                end.setDate(start.getDate() + 6);
+                const s = this.ymd(start), e = this.ymd(end);
+                const count = this.activeWorkouts.filter(w => w.date >= s && w.date <= e).length;
+                weeks.push({ label: start.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }), count });
+            }
+            return weeks;
+        },
+
+        get hasCardioData() {
+            return this.allWorkouts.some(w => w.has_cardio && (w.distance_km > 0 || w.duration_min > 0));
+        },
+
+        get cardioTrends() {
+            return this.allWorkouts
+                .filter(w => w.has_cardio && (w.distance_km > 0 || w.duration_min > 0))
+                .sort((a, b) => a.date.localeCompare(b.date));
+        },
+
+        get monthlyComparison() {
+            const now = new Date();
+            const thisM = `${now.getFullYear()}-${this.pad(now.getMonth() + 1)}`;
+            const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+            const lastM = `${prev.getFullYear()}-${this.pad(prev.getMonth() + 1)}`;
+            const calc = prefix => {
+                const ws = this.allWorkouts.filter(w => w.date.startsWith(prefix) && (w.has_strength || w.has_cardio));
+                return {
+                    workouts: ws.length,
+                    strength: ws.filter(w => w.has_strength).length,
+                    cardio: ws.filter(w => w.has_cardio).length,
+                    distance: ws.reduce((s, w) => s + (w.distance_km || 0), 0),
+                    calories: ws.reduce((s, w) => s + (w.calories || 0), 0),
+                };
+            };
+            return { thisMonth: calc(thisM), lastMonth: calc(lastM) };
+        },
+
+        get monthlyComparisonTitle() {
+            const names = ['January','February','March','April','May','June',
+                           'July','August','September','October','November','December'];
+            const now = new Date();
+            return `${names[now.getMonth()]} vs ${names[now.getMonth() === 0 ? 11 : now.getMonth() - 1]}`;
+        },
+
+        get monthlyComparisonCards() {
+            const mc = this.monthlyComparison;
+            const card = (label, curr, prev, unit) => ({
+                label, unit: unit || '',
+                value: unit === 'km' ? curr.toFixed(1) : String(Math.round(curr)),
+                prev: unit === 'km' ? prev.toFixed(1) : String(Math.round(prev)),
+                up: curr > prev, down: curr < prev,
+            });
+            return [
+                card('Workouts', mc.thisMonth.workouts, mc.lastMonth.workouts),
+                card('Strength', mc.thisMonth.strength, mc.lastMonth.strength),
+                card('Cardio', mc.thisMonth.cardio, mc.lastMonth.cardio),
+                card('Calories', mc.thisMonth.calories, mc.lastMonth.calories, 'kcal'),
+            ];
+        },
+
+        get personality() {
+            const active = this.activeWorkouts;
+            if (active.length === 0) return null;
+            if (active.length < 5) return { icon: 'rocket', title: 'Rising Star', desc: 'Just getting started \u2014 keep building the habit!', color: 'var(--c-accent)' };
+            const s = this.typeSplit;
+            const total = s.strength + s.cardio + s.both;
+            if (total === 0) return null;
+            const streaks = this.analyzeStreaks;
+            if (streaks.current >= 14) return { icon: 'flame', title: 'Unstoppable Force', desc: streaks.current + '-day streak and counting!', color: '#ef4444' };
+            if (s.both > s.strength && s.both > s.cardio) return { icon: 'zap', title: 'Hybrid Beast', desc: 'You love mixing strength and cardio', color: 'var(--c-both)' };
+            const sPct = (s.strength + s.both) / total;
+            const cPct = (s.cardio + s.both) / total;
+            if (sPct > 0.7) return { icon: 'dumbbell', title: 'Iron Warrior', desc: 'Strength training is your domain', color: 'var(--c-strength)' };
+            if (cPct > 0.7) return { icon: 'heart-pulse', title: 'Endurance Machine', desc: 'Cardio is your calling', color: 'var(--c-cardio)' };
+            return { icon: 'trophy', title: 'Complete Athlete', desc: 'A well-rounded mix of strength and cardio', color: 'var(--c-accent)' };
+        },
+
+        get milestones() {
+            const active = this.activeWorkouts;
+            const streaks = this.analyzeStreaks;
+            const split = this.typeSplit;
+            const ms = [];
+            const add = (cond, icon, title) => ms.push({ icon, title, done: cond });
+            add(active.length >= 1, 'dumbbell', 'First Workout');
+            add(active.length >= 10, 'flame', '10 Sessions');
+            add(active.length >= 50, 'star', 'Half Century');
+            add(active.length >= 100, 'award', 'Century Club');
+            add(streaks.longest >= 7, 'calendar-check', '7-Day Streak');
+            add(streaks.longest >= 30, 'heart', '30-Day Streak');
+            add(split.both >= 10, 'zap', 'Dual Threat');
+            const monthCounts = {};
+            for (const w of active) { const m = w.date.substring(0, 7); monthCounts[m] = (monthCounts[m] || 0) + 1; }
+            add(Math.max(0, ...Object.values(monthCounts)) >= 20, 'trophy', 'Marathon Month');
+            return ms;
+        },
+
+        // -------- Chart rendering --------
+        _getThemeColors() {
+            const s = getComputedStyle(document.documentElement);
+            const g = k => s.getPropertyValue(k).trim();
+            return {
+                strength: g('--c-strength'), cardio: g('--c-cardio'), both: g('--c-both'),
+                accent: g('--c-accent'), textSec: g('--c-text-sec'), textMut: g('--c-text-mut'),
+                border: g('--c-border'),
+            };
+        },
+
+        _maybeRefreshCharts() {
+            if (this.currentPage === 'analyze' && this.totalWorkouts > 0) {
+                this.$nextTick(() => { this.renderCharts(); this.refreshIcons(); });
+            }
+        },
+
+        destroyCharts() {
+            for (const k of Object.keys(this._charts)) {
+                if (this._charts[k]) { this._charts[k].destroy(); delete this._charts[k]; }
+            }
+        },
+
+        renderCharts() {
+            if (typeof Chart === 'undefined') return;
+            this.destroyCharts();
+            const c = this._getThemeColors();
+            Chart.defaults.color = c.textSec;
+            Chart.defaults.borderColor = c.border;
+            Chart.defaults.font.family = 'system-ui, sans-serif';
+            this._renderTypeChart(c);
+            this._renderDayChart(c);
+            this._renderWeeklyChart(c);
+            if (this.hasCardioData) this._renderCardioChart(c);
+        },
+
+        _chart(id, config) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            this._charts[id] = new Chart(el, config);
+        },
+
+        _renderTypeChart(c) {
+            const s = this.typeSplit;
+            if (s.strength + s.cardio + s.both === 0) return;
+            this._chart('typeChart', {
+                type: 'doughnut',
+                data: {
+                    labels: ['Strength', 'Cardio', 'Both'],
+                    datasets: [{ data: [s.strength, s.cardio, s.both], backgroundColor: [c.strength, c.cardio, c.both], borderWidth: 0, hoverOffset: 6 }],
+                },
+                options: {
+                    responsive: true, cutout: '62%',
+                    plugins: { legend: { position: 'bottom', labels: { padding: 16, usePointStyle: true, pointStyleWidth: 10 } } },
+                },
+            });
+        },
+
+        _renderDayChart(c) {
+            this._chart('dayChart', {
+                type: 'bar',
+                data: {
+                    labels: ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'],
+                    datasets: [{ data: this.dayOfWeekCounts, backgroundColor: c.accent + 'cc', borderRadius: 6, borderSkipped: false }],
+                },
+                options: {
+                    responsive: true,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { beginAtZero: true, ticks: { stepSize: 1, precision: 0 }, grid: { color: c.border + '40' } },
+                        x: { grid: { display: false } },
+                    },
+                },
+            });
+        },
+
+        _renderWeeklyChart(c) {
+            const w = this.weeklyActivity;
+            this._chart('weeklyChart', {
+                type: 'bar',
+                data: {
+                    labels: w.map(x => x.label),
+                    datasets: [{ data: w.map(x => x.count), backgroundColor: c.accent + 'cc', borderRadius: 4, borderSkipped: false }],
+                },
+                options: {
+                    responsive: true,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { beginAtZero: true, max: 7, ticks: { stepSize: 1, precision: 0 }, grid: { color: c.border + '40' } },
+                        x: { grid: { display: false }, ticks: { maxRotation: 45, minRotation: 0 } },
+                    },
+                },
+            });
+        },
+
+        _renderCardioChart(c) {
+            const t = this.cardioTrends;
+            if (t.length < 2) return;
+            const hasDist = t.some(w => w.distance_km > 0);
+            const hasDur = t.some(w => w.duration_min > 0);
+            const labels = t.map(w => new Date(w.date + 'T12:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric' }));
+            const ds = [];
+            if (hasDist) ds.push({
+                label: 'Distance (km)', data: t.map(w => w.distance_km || 0),
+                borderColor: c.cardio, backgroundColor: c.cardio + '20', fill: true, tension: 0.3, pointRadius: 3,
+            });
+            if (hasDur) ds.push({
+                label: 'Duration (min)', data: t.map(w => w.duration_min || 0),
+                borderColor: c.both, backgroundColor: c.both + '20', fill: true, tension: 0.3, pointRadius: 3,
+                ...(hasDist ? { yAxisID: 'y1' } : {}),
+            });
+            const scales = {
+                x: { grid: { display: false }, ticks: { maxTicksLimit: 8 } },
+                y: { beginAtZero: true, grid: { color: c.border + '40' } },
+            };
+            if (hasDist && hasDur) scales.y1 = { position: 'right', beginAtZero: true, grid: { drawOnChartArea: false } };
+            this._chart('cardioChart', {
+                type: 'line', data: { labels, datasets: ds },
+                options: {
+                    responsive: true,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: { legend: { position: 'bottom', labels: { padding: 16, usePointStyle: true } } },
+                    scales,
+                },
+            });
         },
     };
 }
