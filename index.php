@@ -251,7 +251,8 @@ db();
 <nav class="max-w-3xl mx-auto px-4 pt-4">
     <div class="flex rounded-xl p-1" style="background-color: var(--c-surface);">
         <button @click="switchPage('track')"
-                class="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg font-semibold text-sm transition-all duration-200"
+                :disabled="analyzeAnimating"
+                class="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg font-semibold text-sm transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                 :style="currentPage === 'track'
                     ? 'background-color: var(--c-accent); color: var(--c-accent-text); box-shadow: 0 1px 3px rgba(0,0,0,0.2)'
                     : 'color: var(--c-text-sec)'">

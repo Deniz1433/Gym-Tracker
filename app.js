@@ -211,6 +211,9 @@ function gymApp() {
         allWorkouts:      [],
         analyzeLoading:   false,
         _charts:          {},
+        _analyzeToken:    0,
+        analyzeAnimating: false,
+        _animTimer:       null,
         msTip: '',
         msTipX: 0,
         msTipY: 0,
@@ -271,6 +274,11 @@ function gymApp() {
         // -------- Page navigation --------
         async switchPage(page) {
             if (page === this.currentPage) return;
+            // Lock navigation while analyze charts are animating — leaving
+            // mid-animation leaves Chart.js in a state that blanks graphs on
+            // the next visit.
+            if (this.analyzeAnimating) return;
+            this._analyzeToken++;
             if (this.currentPage === 'analyze') this.destroyCharts();
             this.currentPage = page;
             this.refreshIcons();
@@ -278,20 +286,29 @@ function gymApp() {
         },
 
         async loadAnalyzeData() {
+            const token = ++this._analyzeToken;
             this.analyzeLoading = true;
             try {
                 if (this.user) {
                     const data = await this.api('workouts');
+                    if (token !== this._analyzeToken) return;
                     this.allWorkouts = data.workouts || [];
                 } else {
                     this.allWorkouts = this.localList();
                 }
             } catch (e) {
                 console.error('loadAnalyzeData failed', e);
+                if (token !== this._analyzeToken) return;
                 this.allWorkouts = [];
             }
+            if (token !== this._analyzeToken) return;
             this.analyzeLoading = false;
-            this.$nextTick(() => { this.renderCharts(); this.refreshIcons(); });
+            this.$nextTick(() => {
+                if (token !== this._analyzeToken) return;
+                if (this.currentPage !== 'analyze') return;
+                this.renderCharts();
+                this.refreshIcons();
+            });
         },
 
         // -------- Settings --------
@@ -934,17 +951,50 @@ function gymApp() {
 
         destroyCharts() {
             for (const k of Object.keys(this._charts)) {
-                if (this._charts[k]) { this._charts[k].destroy(); delete this._charts[k]; }
+                if (this._charts[k]) {
+                    try { this._charts[k].stop && this._charts[k].stop(); } catch (_) {}
+                    try { this._charts[k].destroy(); } catch (_) {}
+                    delete this._charts[k];
+                }
+            }
+            // Also sweep any Chart.js instance still bound to our canvases
+            // (e.g. if destroy was interrupted mid-animation on a prior switch).
+            for (const id of ['typeChart','dayChart','weeklyChart','cardioChart']) {
+                const el = document.getElementById(id);
+                if (!el || typeof Chart === 'undefined') continue;
+                const existing = Chart.getChart ? Chart.getChart(el) : null;
+                if (existing) {
+                    try { existing.stop && existing.stop(); } catch (_) {}
+                    try { existing.destroy(); } catch (_) {}
+                }
             }
         },
 
         renderCharts() {
             if (typeof Chart === 'undefined') return;
+            if (this.currentPage !== 'analyze') return;
+            // Alpine's x-show flips display:none off, but the browser may not
+            // have laid out the container yet on the same frame. If the canvas
+            // reports 0 width, Chart.js will render into a zero-size surface
+            // and ResizeObserver won't always recover it. Wait one frame.
+            const probe = document.getElementById('typeChart');
+            if (probe && probe.clientWidth === 0) {
+                requestAnimationFrame(() => this.renderCharts());
+                return;
+            }
             this.destroyCharts();
             const c = this._getThemeColors();
             Chart.defaults.color = c.textSec;
             Chart.defaults.borderColor = c.border;
             Chart.defaults.font.family = 'system-ui, sans-serif';
+            // Lock tab switching for the duration of the chart animations.
+            // Chart.js default animation duration is 1000ms; add a small buffer.
+            this.analyzeAnimating = true;
+            if (this._animTimer) clearTimeout(this._animTimer);
+            this._animTimer = setTimeout(() => {
+                this.analyzeAnimating = false;
+                this._animTimer = null;
+            }, 1100);
             this._renderTypeChart(c);
             this._renderDayChart(c);
             this._renderWeeklyChart(c);
@@ -952,9 +1002,22 @@ function gymApp() {
         },
 
         _chart(id, config) {
-            const el = document.getElementById(id);
-            if (!el) return;
-            this._charts[id] = new Chart(el, config);
+            const old = document.getElementById(id);
+            if (!old) return;
+            // Replace the canvas with a fresh clone before creating the new
+            // chart. When a chart is destroyed mid-animation, the original
+            // canvas can retain 2D-context state, queued rAF callbacks, or
+            // an internal Chart.js registry entry that make the next chart
+            // render as blank. Starting from a brand-new element side-steps
+            // all of that.
+            const existing = Chart.getChart ? Chart.getChart(old) : null;
+            if (existing) {
+                try { existing.stop && existing.stop(); } catch (_) {}
+                try { existing.destroy(); } catch (_) {}
+            }
+            const fresh = old.cloneNode(false);
+            old.parentNode.replaceChild(fresh, old);
+            this._charts[id] = new Chart(fresh, config);
         },
 
         _renderTypeChart(c) {
