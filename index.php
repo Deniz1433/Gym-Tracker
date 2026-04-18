@@ -178,6 +178,7 @@ db();
         font-weight: 700;
         font-size: 0.75rem;
         min-height: 0;
+        overflow: hidden;
     }
     @media (min-width: 640px) {
         .cal-cell { padding: 0.375rem; font-size: 0.875rem; }
@@ -209,14 +210,23 @@ db();
     }
     .cal-cell-note {
         position: absolute;
-        bottom: 0;
-        right: 0;
-        width: 12px;
-        height: 12px;
+        bottom: 10px;
+        right: 2px;
+        width: 10px;
+        height: 10px;
+        display: block;
+        line-height: 0;
         opacity: 0.75;
+        pointer-events: none;
+    }
+    .cal-cell-note svg,
+    .cal-cell-note i {
+        width: 100% !important;
+        height: 100% !important;
+        display: block;
     }
     @media (min-width: 640px) {
-        .cal-cell-note { width: 14px; height: 14px; }
+        .cal-cell-note { width: 14px; height: 14px; bottom: 2px; right: 2px; }
     }
 </style>
 </head>
@@ -312,7 +322,9 @@ db();
                             </div>
                         </template>
                         <template x-if="cell.hasNote">
-                            <i data-lucide="sticky-note" class="cal-cell-note"></i>
+                            <span class="cal-cell-note">
+                                <i data-lucide="sticky-note"></i>
+                            </span>
                         </template>
                     </div>
                 </template>
